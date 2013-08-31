@@ -11,7 +11,8 @@ import time
 print "= id3_to_unicode.py = change encoding of mp3 iD3 tags to unicode, '-h' for help"
 try :
 	import codecs, types, chardet
-	import eyeD3	# mp3 iD tag processing
+	import eyed3	# mp3 iD tag processing
+	import eyed3.mp3	# mp3 iD tag processing
 except ImportError, e :
 	print 'please, install python-%s' % str(e).split()[-1].lower()
 	sys.exit()
@@ -98,21 +99,22 @@ def make_unicode( string, encoding ) :
 
 def convert( file_name, encoding ) :
 	print unicode( file_name, "utf-8" ),
-	if not eyeD3.isMp3File( file_name ) :
+	if not eyed3.mp3.isMp3File( file_name ) :
 		print ': not an MP3 file'
 		return
 
 	try:
-		tag = eyeD3.Tag()
-		if not tag.link( file_name ) :
-			tag.header.setVersion( eyeD3.ID3_V2_3 )
+		audiofile = eyed3.load( file_name )
+
+		tag = audiofile.tag
+		# tag.header.version = eyed3.id3.ID3_V2_3
 	except:
-		tag.header.setVersion( eyeD3.ID3_V2_3 )
+		# tag.header.version = eyed3.id3.ID3_V2_3
 		pass
 
-	artist = unicode2bytestring( tag.getArtist() )
-	album = unicode2bytestring( tag.getAlbum() )
-	title = unicode2bytestring( tag.getTitle() )
+	artist = unicode2bytestring( tag.artist )
+	album = unicode2bytestring( tag.album )
+	title = unicode2bytestring( tag.title )
 
 	original = ''.join( (artist,album,title) )
 
@@ -140,12 +142,12 @@ def convert( file_name, encoding ) :
 	if original != ''.join( (artist,album,title) ) :
 		if update_files :
 			# eyeD3.tag.TagException: ID3 v1.x supports ISO-8859 encoding only
-			tag.setVersion( eyeD3.ID3_V2_4 )
-			tag.setTextEncoding( eyeD3.UTF_8_ENCODING )
-			tag.setArtist( artist )
-			tag.setAlbum( album )
-			tag.setTitle( title )
-			tag.update()
+			# tag.setVersion( eyeD3.ID3_V2_4 )
+			# tag.setTextEncoding( eyeD3.UTF_8_ENCODING )
+			tag.artist = artist
+			tag.album = album
+			tag.title = title
+			tag.save(version = eyed3.id3.ID3_V2_4, encoding = "utf8")
 		print '->',
 	else :
 		print '==', 
@@ -156,20 +158,23 @@ stats = dict()
 
 def collect_stats( file_name ) :
 	global stats
-	if not eyeD3.isMp3File( file_name ) :
+	if not eyed3.mp3.isMp3File( file_name ) :
 		print unicode( file_name, "utf-8" ), ': not an MP3 file'
 		return
 
 	try:
-		tag = eyeD3.Tag()
-		if not tag.link( file_name ) :
+		audiofile = eyed3.load( file_name )
+
+		if not audiofile.type == eyed3.core.AUDIO_MP3 :
 			print unicode( file_name, "utf-8" ), ': iD3 tag is missing'
 			return
+
+		tag = audiofile.tag
 	except Exception, e :
 		print unicode( file_name, "utf-8" ), ':', str(e)
 		return
 
-	for i in (tag.getArtist(), tag.getAlbum(), tag.getTitle()) :
+	for i in (tag.artist, tag.album, tag.title) :
 		enc = chardet.detect( unicode2bytestring( i ) )
 
 		if enc['encoding'] == 'ascii' and not overwrite_tags : continue
